@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Config for make_package_npdrm (from ps3toolchain). Produces a CFW/HEN
+     installable homebrew package. The .self is copied to USRDIR/EBOOT.BIN by
+     the `make pkg` target. -->
+<PKG>
+  <TITLE>Moonlight PS3</TITLE>
+  <CONTENT_ID>UP0001-MLGHT0000_00-0000000000000000</CONTENT_ID>
+  <CATEGORY>HG</CATEGORY>
+  <BOOT>USRDIR/EBOOT.BIN</BOOT>
+  <ICON0>ICON0.PNG</ICON0>
+</PKG>

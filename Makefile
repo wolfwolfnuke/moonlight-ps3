@@ -55,7 +55,18 @@ $(SELF): $(ELF)
 %.o: %.c
 	$(PPU_CC) $(CFLAGS) -c $< -o $@
 
+# Build an installable CFW/HEN homebrew package. Requires make_package_npdrm
+# from the ps3toolchain (not present in every environment). Stages the .self as
+# USRDIR/EBOOT.BIN plus the XMB icon, then invokes the tool.
+PKG_DIR := pkg_build
+pkg: $(SELF)
+	@mkdir -p $(PKG_DIR)/USRDIR
+	cp $(SELF) $(PKG_DIR)/USRDIR/EBOOT.BIN
+	cp pkg/ICON0.PNG $(PKG_DIR)/ICON0.PNG
+	make_package_npdrm pkg/pkg.xml $(PKG_DIR)
+	@echo "Created: $(PKG_DIR)/moonlight-ps3.pkg"
+
 clean:
 	rm -f $(OBJ) $(ELF) $(SELF)
 
-.PHONY: all clean
+.PHONY: all clean pkg

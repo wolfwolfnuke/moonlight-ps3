@@ -11,6 +11,10 @@ deps/
 # Local toolchain/cache (native mbedTLS build, ffmpeg source, etc.)
 .cache/
 
+# PS3 package build output
+pkg_build/
+*.pkg
+
 # Editor / OS noise
 *.swp
 .DS_Store

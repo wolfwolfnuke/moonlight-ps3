@@ -15,6 +15,14 @@ deps/
 pkg_build/
 *.pkg
 
+# pkgcrypt CPython extension build artifacts (rebuilt by `make pkg`)
+tools/pkg/build/
+tools/pkg/pkgcrypt*.so
+
 # Editor / OS noise
 *.swp
 .DS_Store
+
+# Python cache
+__pycache__/
+*.pyc

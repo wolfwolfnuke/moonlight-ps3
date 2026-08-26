@@ -55,16 +55,27 @@ $(SELF): $(ELF)
 %.o: %.c
 	$(PPU_CC) $(CFLAGS) -c $< -o $@
 
-# Build an installable CFW/HEN homebrew package. Requires make_package_npdrm
-# from the ps3toolchain (not present in every environment). Stages the .self as
-# USRDIR/EBOOT.BIN plus the XMB icon, then invokes the tool.
-PKG_DIR := pkg_build
+# Build an installable CFW/HEN homebrew package. Uses PSL1GHT's Python package
+# tool (tools/pkg: pkg.py + sfo.py + pkgcrypt extension) so no separate
+# make_package_npdrm binary is required. Stages the .self as USRDIR/EBOOT.BIN
+# plus PARAM.SFO (generated from tools/pkg/sfo_template.xml) and ICON0.PNG.
+PKG_DIR    := pkg_build
+PKG_TOOL   := tools/pkg
+PKG_NAME   := moonlight-ps3.pkg
+CONTENT_ID := UP0001-MLGHT0000_00-0000000000000000
+PKG_TITLE  := Moonlight PS3
+
 pkg: $(SELF)
 	@mkdir -p $(PKG_DIR)/USRDIR
 	cp $(SELF) $(PKG_DIR)/USRDIR/EBOOT.BIN
 	cp pkg/ICON0.PNG $(PKG_DIR)/ICON0.PNG
-	make_package_npdrm pkg/pkg.xml $(PKG_DIR)
-	@echo "Created: $(PKG_DIR)/moonlight-ps3.pkg"
+	@if [ ! -f $(PKG_TOOL)/pkgcrypt*.so ]; then \
+		(cd $(PKG_TOOL) && python3 setup.py build_ext >/dev/null 2>&1 && \
+		 cp build/lib.*/pkgcrypt*.so .); fi
+	python3 $(PKG_TOOL)/sfo.py --title "$(PKG_TITLE)" --appid MLGHT0000 \
+		-f $(PKG_TOOL)/sfo_template.xml $(PKG_DIR)/PARAM.SFO
+	python3 $(PKG_TOOL)/pkg.py -c "$(CONTENT_ID)" $(PKG_DIR)/ $(PKG_NAME)
+	@echo "Created: $(PKG_NAME)"
 
 clean:
 	rm -f $(OBJ) $(ELF) $(SELF)

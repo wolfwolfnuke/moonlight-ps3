@@ -1,0 +1,10 @@
+<sfo>
+  <value type="string" name="TITLE">Moonlight PS3</value>
+  <value type="string" name="TITLE_ID">MLGHT0000</value>
+  <value type="string" name="CATEGORY">HG</value>
+  <value type="string" name="APP_VER">01.00</value>
+  <value type="string" name="VERSION">01.00</value>
+  <value type="string" name="PS3_SYSTEM_VER">04.8000</value>
+  <value type="integer" name="BOOTABLE">1</value>
+  <value type="integer" name="APP_TYPE">1</value>
+</sfo>

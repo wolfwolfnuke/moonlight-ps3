@@ -15,7 +15,8 @@ static FILE *open_log(void)
     static const char *paths[] = {
         "/dev_hdd0/game/MLGHT0000/USRDIR/moonlight.log",
         "moonlight.log",
-        "mass0:/moonlight.log",
+        "/dev_usb000/moonlight.log",
+        "/dev_usb001/moonlight.log",
         NULL
     };
     for (int i = 0; paths[i]; i++) {

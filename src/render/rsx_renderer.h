@@ -16,6 +16,12 @@ void rsx_renderer_present_yuv(rsx_renderer_t *r, const video_frame_t *f);
 /* Fill the framebuffer with a solid color (placeholder for real UI rendering). */
 void rsx_renderer_clear(rsx_renderer_t *r, uint8_t red, uint8_t green, uint8_t blue);
 
+/* Draw a NUL-terminated string using a built-in 3x5 font (uppercase A-Z,
+ * 0-9, space, ':' and '-' supported). Writes into the CPU staging buffer that
+ * is later presented. scale is the pixel size of one font cell. */
+void rsx_renderer_draw_text(rsx_renderer_t *r, int x, int y, int scale,
+                            const char *s, uint8_t red, uint8_t green, uint8_t blue);
+
 void rsx_renderer_shutdown(rsx_renderer_t *r);
 
 #endif /* RENDER_RSX_RENDERER_H */

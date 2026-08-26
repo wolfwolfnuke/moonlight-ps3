@@ -2,16 +2,31 @@
 #include "common/log.h"
 
 #include <net/net.h>
+#include <net/netctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
 
+/* netCtlInit/netCtlGetState are declared in <net/netctl.h>. The system brings
+ * up the configured connection automatically once netCtlInit is called, so we
+ * just poll netCtlGetState. */
+
 int net_init(void)
 {
-    /* PSL1GHT's socket stack initializes itself. On real HW, join a
-     * connection first (netctl) before calling this. */
+    if (netCtlInit() < 0) {
+        LOGW("net: netCtlInit failed\n");
+        return -1;
+    }
+    for (int i = 0; i < 100; i++) {
+        s32 state = 0;
+        netCtlGetState(&state);
+        if (state == NET_CTL_STATE_IPObtained)
+            return 0;
+        usleep(100000);
+    }
+    LOGW("net: interface did not obtain an IP (continuing)\n");
     return 0;
 }
 

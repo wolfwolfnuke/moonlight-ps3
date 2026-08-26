@@ -88,6 +88,61 @@ void rsx_renderer_shutdown(rsx_renderer_t *r)
     free(r);
 }
 
+/* 3x5 font glyphs (rows are 3 bits, LSB = leftmost pixel). Index 0=' '(space)
+ * .. then 'A'-'Z', '0'-'9', ':', '-'. Unknown chars render as blank. */
+static const uint16_t font3x5[] = {
+    /* space */ 0x000,
+    /* A */ 0x7B7, /* B */ 0x6E7, /* C */ 0x327, /* D */ 0x6E9, /* E */ 0x767,
+    /* F */ 0x757, /* G */ 0x3AF, /* H */ 0x757, /* I */ 0x492, /* J */ 0x31C,
+    /* K */ 0x755, /* L */ 0x327, /* M */ 0x72F, /* N */ 0x72B, /* O */ 0x32B,
+    /* P */ 0x6B7, /* Q */ 0x32B, /* R */ 0x6B5, /* S */ 0x74E, /* T */ 0x492,
+    /* U */ 0x32D, /* V */ 0x1C7, /* W */ 0x3AD, /* X */ 0x5A5, /* Y */ 0x5A2,
+    /* Z */ 0x4B3,
+    /* 0 */ 0x72B, /* 1 */ 0x092, /* 2 */ 0x4B6, /* 3 */ 0x49E, /* 4 */ 0x53A,
+    /* 5 */ 0x74E, /* 6 */ 0x76E, /* 7 */ 0x4A1, /* 8 */ 0x76F, /* 9 */ 0x76B,
+    /* : */ 0x000, /* - */ 0x540,
+};
+
+static int font_index(char c)
+{
+    if (c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
+    if (c == ' ') return 0;
+    if (c >= 'A' && c <= 'Z') return 1 + (c - 'A');
+    if (c >= '0' && c <= '9') return 1 + 26 + (c - '0');
+    if (c == ':') return 1 + 26 + 10;
+    if (c == '-') return 1 + 26 + 11;
+    return 0;
+}
+
+void rsx_renderer_draw_text(rsx_renderer_t *r, int x, int y, int scale,
+                            const char *s, uint8_t red, uint8_t green, uint8_t blue)
+{
+    if (!r || !r->rgba || !s)
+        return;
+
+    int cx = x;
+    for (const char *p = s; *p; p++) {
+        uint16_t g = font3x5[font_index(*p)];
+        for (int row = 0; row < 5; row++) {
+            for (int col = 0; col < 3; col++) {
+                if ((g >> (row * 3 + (2 - col))) & 1) {
+                    for (int sy = 0; sy < scale; sy++) {
+                        for (int sx = 0; sx < scale; sx++) {
+                            int px = cx + col * scale + sx;
+                            int py = y + row * scale + sy;
+                            if (px < 0 || py < 0 || px >= r->width || py >= r->height)
+                                continue;
+                            uint8_t *d = r->rgba + ((size_t)py * r->width + px) * 4;
+                            d[0] = red; d[1] = green; d[2] = blue; d[3] = 255;
+                        }
+                    }
+                }
+            }
+        }
+        cx += 4 * scale; /* 3 cols + 1 space */
+    }
+}
+
 void rsx_renderer_clear(rsx_renderer_t *r, uint8_t red, uint8_t green, uint8_t blue)
 {
     if (!r || !r->rgba)

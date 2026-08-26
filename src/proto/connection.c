@@ -46,9 +46,9 @@ int session_start(paired_host_t *host, session_t *out)
     int h = out->rtsp.height > 0 ? out->rtsp.height : 480;
     out->pipeline = pipeline_create(w, h);
 
-    out->vreasm = reasm_create();
+    out->vreasm = reasm_create(1);
     reasm_set_callback(out->vreasm, on_video_frame, out);
-    out->areasm = reasm_create();
+    out->areasm = reasm_create(0);
     reasm_set_callback(out->areasm, on_audio_frame, out);
 
     LOGI("session: started with %s\n", host->ip);

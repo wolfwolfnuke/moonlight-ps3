@@ -7,6 +7,7 @@
 #include <mbedtls/rsa.h>
 #include <mbedtls/x509_crt.h>
 #include <mbedtls/sha256.h>
+#include <mbedtls/aes.h>
 #include <mbedtls/platform_time.h>
 
 #include <string.h>
@@ -169,5 +170,102 @@ int crypto_rsa_encrypt_pubkey_pem(const char *cert_pem,
     ret = 0;
 out:
     mbedtls_x509_crt_free(&cert);
+    return ret;
+}
+
+int crypto_aes128_ecb(const uint8_t *key, const uint8_t *in, size_t len,
+                      uint8_t *out, int encrypt)
+{
+    if (len % 16 != 0)
+        return -1;
+    mbedtls_aes_context aes;
+    mbedtls_aes_init(&aes);
+    int rc = encrypt ? mbedtls_aes_setkey_enc(&aes, key, 128)
+                     : mbedtls_aes_setkey_dec(&aes, key, 128);
+    if (rc != 0) {
+        mbedtls_aes_free(&aes);
+        return -1;
+    }
+    for (size_t i = 0; i < len; i += 16) {
+        if (mbedtls_aes_crypt_ecb(&aes,
+                encrypt ? MBEDTLS_AES_ENCRYPT : MBEDTLS_AES_DECRYPT,
+                in + i, out + i) != 0) {
+            mbedtls_aes_free(&aes);
+            return -1;
+        }
+    }
+    mbedtls_aes_free(&aes);
+    return 0;
+}
+
+int crypto_x509_verify(const char *cert_pem,
+                       const void *data, size_t dlen,
+                       const void *sig, size_t slen)
+{
+    mbedtls_x509_crt cert;
+    mbedtls_x509_crt_init(&cert);
+    int ret = -1;
+    if (mbedtls_x509_crt_parse(&cert, (const unsigned char *)cert_pem,
+                               strlen(cert_pem) + 1) != 0) {
+        LOGE("crypto: verify: cert parse failed\n");
+        goto out;
+    }
+    uint8_t hash[32];
+    mbedtls_sha256((const unsigned char *)data, dlen, hash, 0);
+    if (mbedtls_pk_verify(&cert.pk, MBEDTLS_MD_SHA256, hash, sizeof(hash),
+                          (const unsigned char *)sig, slen) == 0)
+        ret = 0;
+    else
+        LOGE("crypto: signature verification failed\n");
+out:
+    mbedtls_x509_crt_free(&cert);
+    return ret;
+}
+
+int crypto_rsa_sign(const char *key_pem,
+                    const void *data, size_t dlen,
+                    uint8_t *sig, size_t *sig_len)
+{
+    mbedtls_pk_context key;
+    mbedtls_pk_init(&key);
+    int ret = -1;
+    if (mbedtls_pk_parse_key(&key, (const unsigned char *)key_pem,
+                             strlen(key_pem) + 1, NULL, 0) != 0) {
+        LOGE("crypto: sign: key parse failed\n");
+        goto out;
+    }
+    uint8_t hash[32];
+    mbedtls_sha256((const unsigned char *)data, dlen, hash, 0);
+    if (mbedtls_pk_sign(&key, MBEDTLS_MD_SHA256, hash, sizeof(hash),
+                        sig, sig_len, mbedtls_ctr_drbg_random,
+                        crypto_get_drbg()) == 0)
+        ret = 0;
+    else
+        LOGE("crypto: signing failed\n");
+out:
+    mbedtls_pk_free(&key);
+    return ret;
+}
+
+int crypto_cert_signature(const char *cert_pem,
+                          uint8_t *out, size_t outcap, size_t *outlen)
+{
+    mbedtls_x509_crt crt;
+    mbedtls_x509_crt_init(&crt);
+    int ret = -1;
+    if (mbedtls_x509_crt_parse(&crt, (const unsigned char *)cert_pem,
+                               strlen(cert_pem) + 1) != 0) {
+        LOGE("crypto: cert signature: parse failed\n");
+        goto out;
+    }
+    if (crt.sig.len > outcap) {
+        LOGE("crypto: cert signature too large\n");
+        goto out;
+    }
+    memcpy(out, crt.sig.p, crt.sig.len);
+    *outlen = crt.sig.len;
+    ret = 0;
+out:
+    mbedtls_x509_crt_free(&crt);
     return ret;
 }

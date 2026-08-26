@@ -38,6 +38,6 @@ void rtsp_teardown(rtsp_session_t *s);
 /* App list + launch over the GameStream HTTPS API (port 47989). The exact
  * endpoint/port may need verification against moonlight-common-c (TODO). */
 int  rtsp_applist(const paired_host_t *host, app_entry_t *out, int max);
-int  rtsp_launch(const paired_host_t *host, const char *app_id);
+int  rtsp_launch(paired_host_t *host, const char *app_id);
 
 #endif /* NET_RTSP_H */

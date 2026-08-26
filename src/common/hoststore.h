@@ -9,12 +9,19 @@
 #define HOST_CERT_LEN  2048
 #define MAX_HOSTS      16
 
-/* A paired GameStream host. `key`/`iv` are the 16-byte AES session secrets
- * negotiated during pairing and persisted on disk. */
+/* A paired GameStream host. The client cert/key (PEM) are generated during
+ * pairing and persisted on disk; they are presented for mutual TLS on every
+ * subsequent HTTPS request. */
 typedef struct {
     char    name[HOST_NAME_LEN];
     char    ip[HOST_IP_LEN];
     char    uuid[HOST_UUID_LEN];
+    char    unique_id[17];           /* 8 random bytes, hex (pairing identity) */
+    int     httpPort;                /* GameStream HTTP port (default 47989) */
+    int     httpsPort;               /* GameStream HTTPS port (default 47984) */
+    int     serverMajorVersion;      /* GFE/Sunshine major version */
+    uint8_t rikey[16];               /* per-session AES key for control/input */
+    uint32_t rikeyid;                /* rikey id sent at launch */
     uint8_t key[16];
     uint8_t iv[16];
     char    cert_pem[HOST_CERT_LEN]; /* client cert (PEM) used for mutual TLS */

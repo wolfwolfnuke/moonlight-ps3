@@ -1,6 +1,7 @@
 #include "net/rtsp.h"
 #include "sock.h"
 #include "common/log.h"
+#include "common/crypto.h"
 #include "net/http.h"
 
 #include <string.h>
@@ -236,14 +237,18 @@ void rtsp_teardown(rtsp_session_t *s)
     s->fd = -1;
 }
 
-/* GameStream serves app list + launch over HTTPS. The port below (47989) is the
- * standard Moonlight HTTPS port; verify against moonlight-common-c (TODO). */
-#define APPLIST_PORT 47989
+/* GameStream serves app list + launch over HTTPS on httpsPort (default 47984).
+ * Ported from moonlight-embedded gs_applist / gs_start_app. */
+
+static int https_port(const paired_host_t *host)
+{
+    return host->httpsPort ? host->httpsPort : 47984;
+}
 
 int rtsp_applist(const paired_host_t *host, app_entry_t *out, int max)
 {
     char url[128];
-    snprintf(url, sizeof(url), "https://%s:%d/applist", host->ip, APPLIST_PORT);
+    snprintf(url, sizeof(url), "https://%s:%d/applist", host->ip, https_port(host));
 
     http_response_t r;
     if (http_get(url, host, &r) != 0 || r.status != 200 || !r.body) {
@@ -288,11 +293,40 @@ int rtsp_applist(const paired_host_t *host, app_entry_t *out, int max)
     return n;
 }
 
-int rtsp_launch(const paired_host_t *host, const char *app_id)
+int rtsp_launch(paired_host_t *host, const char *app_id)
 {
-    char url[160];
-    snprintf(url, sizeof(url), "https://%s:%d/launch?appid=%s",
-             host->ip, APPLIST_PORT, app_id);
+    /* Per-session AES key for control/input streams, sent to the host. */
+    crypto_rand(host->rikey, sizeof(host->rikey));
+    unsigned char rikeyid_raw[4];
+    crypto_rand(rikeyid_raw, sizeof(rikeyid_raw));
+    uint32_t rikeyid = ((uint32_t)rikeyid_raw[0] << 24) |
+                       ((uint32_t)rikeyid_raw[1] << 16) |
+                       ((uint32_t)rikeyid_raw[2] << 8)  |
+                       ((uint32_t)rikeyid_raw[3]);
+    host->rikeyid = rikeyid;
+
+    char rikey_hex[33];
+    static const char *hx = "0123456789abcdef";
+    for (int i = 0; i < 16; i++) {
+        rikey_hex[i * 2]     = hx[host->rikey[i] >> 4];
+        rikey_hex[i * 2 + 1] = hx[host->rikey[i] & 0xf];
+    }
+    rikey_hex[32] = 0;
+
+    unsigned char ru[16];
+    crypto_rand(ru, sizeof(ru));
+    char uuid[33];
+    for (int i = 0; i < 16; i++) {
+        uuid[i * 2]     = hx[ru[i] >> 4];
+        uuid[i * 2 + 1] = hx[ru[i] & 0xf];
+    }
+    uuid[32] = 0;
+
+    char url[512];
+    const char *uid = host->unique_id[0] ? host->unique_id : uuid;
+    snprintf(url, sizeof(url),
+             "https://%s:%d/launch?uniqueid=%s&uuid=%s&appid=%s&mode=854x480x60&additionalStates=1&sops=0&rikey=%s&rikeyid=%u&localAudioPlayMode=0&surroundAudioInfo=0&remoteControllersBitmap=0&gcmap=0",
+             host->ip, https_port(host), uid, uuid, app_id, rikey_hex, rikeyid);
 
     http_response_t r;
     int rc = http_post(url, host, "", &r);

@@ -4,9 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Persisted under the app's USRDIR. Path matches a hypothetical
- * MLIGHT000 title ID; adjust when the package is finalized. */
-#define HOSTSTORE_PATH "/dev_hdd0/game/MLIGHT000/USRDIR/hosts.dat"
+/* Persisted under the app's USRDIR (homebrew-writable). Title ID MLGHT0000. */
+#define HOSTSTORE_PATH "/dev_hdd0/game/MLGHT0000/USRDIR/hosts.dat"
 
 static paired_host_t g_hosts[MAX_HOSTS];
 static int g_count = 0;

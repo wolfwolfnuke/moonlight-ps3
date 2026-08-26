@@ -30,7 +30,30 @@ void crypto_derive_keyiv(const uint8_t digest[32], uint8_t key[16], uint8_t iv[1
  * (the GameStream host cert / "challenge"). Output length in *out_len.
  * Returns 0 on success. */
 int crypto_rsa_encrypt_pubkey_pem(const char *cert_pem,
-                                  const void *in, size_t in_len,
-                                  uint8_t *out, size_t *out_len);
+                                   const void *in, size_t in_len,
+                                   uint8_t *out, size_t *out_len);
+
+/* AES-128-ECB (no padding). `key` must be 16 bytes. `len` must be a multiple
+ * of 16. encrypt != 0 to encrypt, 0 to decrypt. */
+int crypto_aes128_ecb(const uint8_t *key, const uint8_t *in, size_t len,
+                      uint8_t *out, int encrypt);
+
+/* Verify an RSASSA-PKCS#1-v1.5 SHA-256 signature over `data` using the public
+ * key from a PEM cert (e.g. the host's plaincert). Returns 0 if valid. */
+int crypto_x509_verify(const char *cert_pem,
+                       const void *data, size_t dlen,
+                       const void *sig, size_t slen);
+
+/* Produce an RSASSA-PKCS#1-v1.5 SHA-256 signature over `data` using a PEM
+ * private key. *sig_len is filled in (caller buffer must be >= 512 bytes).
+ * Returns 0 on success. */
+int crypto_rsa_sign(const char *key_pem,
+                    const void *data, size_t dlen,
+                    uint8_t *sig, size_t *sig_len);
+
+/* Copy the signature bytes of a (client) X.509 cert into out. Returns 0 on
+ * success and sets *out_len. Used by the pairing challenge-response. */
+int crypto_cert_signature(const char *cert_pem,
+                          uint8_t *out, size_t outcap, size_t *outlen);
 
 #endif /* CRYPTO_H */

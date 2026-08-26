@@ -35,11 +35,18 @@ static int bio_recv(void *ctx, unsigned char *buf, size_t len)
 }
 
 static int parse_url(const char *url, char *host, int hostlen,
-                     int *port, char *path, int pathlen)
+                      int *port, char *path, int pathlen, int *is_tls)
 {
-    if (strncmp(url, "https://", 8) != 0)
+    if (strncmp(url, "https://", 8) == 0) {
+        *is_tls = 1;
+        url += 8;
+    } else if (strncmp(url, "http://", 7) == 0) {
+        *is_tls = 0;
+        url += 7;
+    } else {
         return -1;
-    const char *p = url + 8;
+    }
+    const char *p = url;
     const char *slash = strchr(p, '/');
     const char *colon = strchr(p, ':');
 
@@ -56,7 +63,7 @@ static int parse_url(const char *url, char *host, int hostlen,
         hostend = slash ? (int)(slash - p) : (int)strlen(p);
         if (hostend >= hostlen) return -1;
         memcpy(host, p, hostend); host[hostend] = 0;
-        *port = 47989; /* GameStream HTTPS default */
+        *port = *is_tls ? 47989 : 47989; /* GameStream default */
         p = slash ? slash : p + hostend;
     }
     if (slash) {
@@ -77,7 +84,7 @@ static int tls_connect(int fd, const char *hostname, const paired_host_t *host,
     mbedtls_ssl_conf_rng(conf, mbedtls_ctr_drbg_random, crypto_get_drbg());
     mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
 
-    if (host && host->paired && host->cert_pem[0] && host->key_pem[0]) {
+    if (host && host->cert_pem[0] && host->key_pem[0]) {
         mbedtls_x509_crt_init(cli_cert);
         mbedtls_pk_init(cli_key);
         if (            mbedtls_x509_crt_parse(cli_cert,
@@ -108,11 +115,12 @@ static int tls_connect(int fd, const char *hostname, const paired_host_t *host,
 }
 
 static int perform(const char *url, const char *method, const char *payload,
-                   const paired_host_t *host, http_response_t *out)
+                    const paired_host_t *host, http_response_t *out)
 {
     char hostname[128], path[512];
-    int port;
-    if (parse_url(url, hostname, sizeof(hostname), &port, path, sizeof(path)) != 0) {
+    int port, is_tls;
+    if (parse_url(url, hostname, sizeof(hostname), &port, path, sizeof(path),
+                  &is_tls) != 0) {
         LOGE("http: bad url %s\n", url);
         return -1;
     }
@@ -125,11 +133,17 @@ static int perform(const char *url, const char *method, const char *payload,
     mbedtls_ssl_config conf;
     mbedtls_x509_crt cli_cert;
     mbedtls_pk_context cli_key;
+    memset(&ssl, 0, sizeof(ssl));
     memset(&cli_key, 0, sizeof(cli_key));
+    int tls_up = 0;
 
-    if (tls_connect(fd, hostname, host, &ssl, &conf, &cli_cert, &cli_key) != 0) {
-        net_close(fd);
-        return -1;
+    if (is_tls) {
+        if (tls_connect(fd, hostname, host, &ssl, &conf, &cli_cert,
+                        &cli_key) != 0) {
+            net_close(fd);
+            return -1;
+        }
+        tls_up = 1;
     }
 
     char req[1024];
@@ -148,11 +162,12 @@ static int perform(const char *url, const char *method, const char *payload,
         hlen += snprintf(req + hlen, sizeof(req) - hlen, "\r\n");
     }
 
-    if (mbedtls_ssl_write(&ssl, (const unsigned char *)req, hlen) < 0) {
-        LOGE("http: ssl_write failed\n");
-        mbedtls_ssl_close_notify(&ssl);
-        mbedtls_ssl_free(&ssl);
-        mbedtls_ssl_config_free(&conf);
+    int wr = tls_up ? mbedtls_ssl_write(&ssl, (const unsigned char *)req, hlen)
+                    : net_send(fd, req, hlen);
+    if (wr < 0) {
+        LOGE("http: write failed\n");
+        if (tls_up) { mbedtls_ssl_close_notify(&ssl); mbedtls_ssl_free(&ssl);
+                      mbedtls_ssl_config_free(&conf); }
         net_close(fd);
         return -1;
     }
@@ -163,15 +178,18 @@ static int perform(const char *url, const char *method, const char *payload,
     if (!buf) { net_close(fd); return -1; }
     while (1) {
         if (used + 1024 > cap) { cap *= 2; buf = realloc(buf, cap); }
-        int n = mbedtls_ssl_read(&ssl, buf + used, 1024);
+        int n = tls_up ? mbedtls_ssl_read(&ssl, buf + used, 1024)
+                       : net_recv(fd, buf + used, 1024);
         if (n <= 0)
             break;
         used += n;
     }
 
-    mbedtls_ssl_close_notify(&ssl);
-    mbedtls_ssl_free(&ssl);
-    mbedtls_ssl_config_free(&conf);
+    if (tls_up) {
+        mbedtls_ssl_close_notify(&ssl);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_ssl_config_free(&conf);
+    }
     net_close(fd);
 
     /* Split headers / body. */

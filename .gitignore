@@ -1,0 +1,16 @@
+# Build artifacts
+*.o
+*.elf
+*.self
+*.a
+
+# Cross-built dependencies (regenerate via tools/build_ffmpeg.sh / BUILD.md).
+# The build uses portlibs mbedTLS/libxml2; deps/ here is only vendored builds.
+deps/
+
+# Local toolchain/cache (native mbedTLS build, ffmpeg source, etc.)
+.cache/
+
+# Editor / OS noise
+*.swp
+.DS_Store

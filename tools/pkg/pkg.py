@@ -452,7 +452,7 @@ def pack(folder, contentid, outname=None):
 			fileSHA1 = SHA1(fileData)
 			fp.close()
 			written = fileData
-			if fileData[0:9] == b"SCE\0\0\0\0\x02\x80":
+			if fileData[0:4] == b"SCE\0":
 				fselfheader = SelfHeader()
 				fselfheader.unpack(fileData[0:len(fselfheader)])
 				appheader = AppInfo()

@@ -9,6 +9,7 @@ PPU_CC  := $(PS3DEV)/ppu/bin/ppu-gcc
 PPU_LD  := $(PS3DEV)/ppu/bin/ppu-gcc
 PPU_OBJCOPY := $(PS3DEV)/ppu/bin/ppu-objcopy
 MAKE_FSELF := $(PS3DEV)/bin/fself
+MAKE_SELF_NPDRM := $(PS3DEV)/bin/make_self_npdrm
 
 TARGET := moonlight-ps3
 ELF    := $(TARGET).elf
@@ -50,7 +51,7 @@ $(ELF): $(OBJ)
 	$(PPU_LD) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
 $(SELF): $(ELF)
-	$(MAKE_FSELF) -n $< $@
+	$(MAKE_SELF_NPDRM) $< $@ $(CONTENT_ID)
 
 %.o: %.c
 	$(PPU_CC) $(CFLAGS) -c $< -o $@

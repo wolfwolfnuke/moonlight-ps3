@@ -369,8 +369,6 @@ def getFiles(files, folder, original):
 			file.fileSize 	= os.path.getsize(filepath)
 			file.flags		= TYPE_OVERWRITE_ALLOWED | TYPE_RAW
 			if newpath == "USRDIR/EBOOT.BIN":
-				# NPDRM header (NPD) is 0x80 bytes; the PS3 requires it
-				# prepended to the SELF or it refuses to start the binary.
 				file.fileSize = 0x80 + os.path.getsize(filepath)
 				file.flags		= TYPE_OVERWRITE_ALLOWED | TYPE_NPDRMSELF
 			
@@ -454,28 +452,40 @@ def pack(folder, contentid, outname=None):
 			fileSHA1 = SHA1(fileData)
 			fp.close()
 			written = fileData
-			# Prepend the NPDRM (NPD) header for EBOOT.BIN. The original code
-			# only did this for appType==8 SELFs with a type-3 digest block,
-			# which PSL1GHT homebrew SELFs (appType==4, no type-3 digest) lack
-			# -- so the binary shipped as a bare SELF and the PS3 refused to
-			# start it ("error during start operation").
-			if file.flags & 0xFF == TYPE_NPDRMSELF and fileData[0:4] == b"SCE\0":
-				meta = EbootMeta()
-				meta.magic = 0x4E504400
-				meta.unk1 = 1
-				meta.drmType = metaBlock.drmType
-				meta.unk2 = 1
-				for i in range(0,min(len(contentid), 0x30)):
-					meta.contentID[i] = ord(contentid[i:i+1])
-				for i in range(0,0x10):
-					meta.fileSHA1[i] = ord(fileSHA1[i:i+1])
-					meta.notSHA1[i] = (~meta.fileSHA1[i]) & 0xFF
-					if i == 0xF:
-						meta.notXORKLSHA1[i] = (1 ^ meta.notSHA1[i] ^ 0xAA) & 0xFF
+			if fileData[0:9] == b"SCE\0\0\0\0\x02\x80":
+				fselfheader = SelfHeader()
+				fselfheader.unpack(fileData[0:len(fselfheader)])
+				appheader = AppInfo()
+				appheader.unpack(fileData[fselfheader.AppInfo:fselfheader.AppInfo+len(appheader)])
+				found = False
+				digestOff = fselfheader.digest
+				while not found:
+					digest = DigestBlock()
+					digest.unpack(fileData[digestOff:digestOff+len(digest)])
+					if digest.type == 3:
+						found = True
 					else:
-						meta.notXORKLSHA1[i] = (0 ^ meta.notSHA1[i] ^ 0xAA) & 0xFF
-					meta.nulls[i] = 0
-				written = meta.pack() + fileData
+						digestOff += digest.size
+					if digest.isNext != 1:
+						break
+				digestOff += len(digest)
+				if appheader.appType == 8 and found:
+					meta = EbootMeta()
+					meta.magic = 0x4E504400
+					meta.unk1 			= 1
+					meta.drmType 		= metaBlock.drmType
+					meta.unk2			= 1
+					for i in range(0,min(len(contentid), 0x30)):
+						meta.contentID[i] = ord(contentid[i:i+1])
+					for i in range(0,0x10):
+						meta.fileSHA1[i] 		= ord(fileSHA1[i:i+1])
+						meta.notSHA1[i] 		= (~meta.fileSHA1[i]) & 0xFF
+						if i == 0xF:
+							meta.notXORKLSHA1[i] 	= (1 ^ meta.notSHA1[i] ^ 0xAA) & 0xFF
+						else:
+							meta.notXORKLSHA1[i] 	= (0 ^ meta.notSHA1[i] ^ 0xAA) & 0xFF
+						meta.nulls[i] 			= 0
+					written = meta.pack() + fileData
 			dataToEncrypt += written
 			dataToEncrypt += b'\0' * (((file.fileSize + 0x0F) & ~0x0F) - len(written))
 	header.dataSize = len(dataToEncrypt)

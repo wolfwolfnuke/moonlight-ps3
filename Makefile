@@ -50,7 +50,7 @@ $(ELF): $(OBJ)
 	$(PPU_LD) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
 $(SELF): $(ELF)
-	$(MAKE_FSELF) $< $@
+	$(MAKE_FSELF) -n $< $@
 
 %.o: %.c
 	$(PPU_CC) $(CFLAGS) -c $< -o $@

@@ -47,15 +47,23 @@ int ui_run(void)
     }
     if (hoststore_load() != 0)
         LOGW("no persisted hosts (first run)\n");
+    LOGI("ui: calling net_init\n");
     net_init();
+    LOGI("ui: net_init done\n");
 
     discovered_host_t found[MAX_DISCOVERED];
+    LOGI("ui: calling mdns_discover\n");
     int n = mdns_discover(found, MAX_DISCOVERED);
+    LOGI("ui: mdns_discover found %d hosts\n", n);
     for (int i = 0; i < n; i++)
         hoststore_add(found[i].ip, found[i].name);
 
+    LOGI("ui: calling pad_init\n");
     pad_init();
+    LOGI("ui: pad_init done\n");
+    LOGI("ui: calling rsx_renderer_init\n");
     rsx_renderer_t *rr = rsx_renderer_init(854, 480);
+    LOGI("ui: rsx_renderer_init done\n");
 
     int state = ST_HOSTS;
     int sel = 0;

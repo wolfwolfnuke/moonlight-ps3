@@ -10,5 +10,6 @@ int main(void)
     LOGI("moonlight-ps3 starting\n");
     ui_run();
     LOGI("moonlight-ps3 done\n");
+    fflush(NULL);
     return 0;
 }

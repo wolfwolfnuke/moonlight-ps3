@@ -85,7 +85,7 @@ pkg: $(BUILDDIR)/$(ELF)
 	@if [ ! -f $(PKG_TOOL)/pkgcrypt*.so ]; then \
 		(cd $(PKG_TOOL) && python3 setup.py build_ext >/dev/null 2>&1 && \
 		 cp build/lib.*/pkgcrypt*.so .); fi
-	python3 $(PKG_TOOL)/sfo.py --title "$(PKG_TITLE)" --appid MLGHT0000 \
+	$(PS3DEV)/bin/sfo --title="$(PKG_TITLE)" --appid=MLGHT0000 \
 		-f $(PKG_TOOL)/sfo_template.xml $(PKG_DIR)/PARAM.SFO
 	python3 $(PKG_TOOL)/pkg.py -c "$(CONTENT_ID)" $(PKG_DIR)/ $(PKG_NAME)
 	$(PKG_FINALIZE) $(PKG_NAME)

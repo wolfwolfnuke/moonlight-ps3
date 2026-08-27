@@ -3,6 +3,7 @@
 
 #include <net/net.h>
 #include <net/netctl.h>
+#include <sysmodule/sysmodule.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -15,6 +16,12 @@
 
 int net_init(void)
 {
+    sysModuleLoad(SYSMODULE_NET);
+    sysModuleLoad(SYSMODULE_NETCTL);
+    sysModuleLoad(SYSMODULE_SYSUTIL);
+    sysModuleLoad(SYSMODULE_IO);
+    sysModuleLoad(SYSMODULE_AUDIO);
+
     if (netCtlInit() < 0) {
         LOGW("net: netCtlInit failed\n");
         return -1;

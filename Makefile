@@ -60,11 +60,12 @@ $(SELF): $(ELF)
 # tool (tools/pkg: pkg.py + sfo.py + pkgcrypt extension) so no separate
 # make_package_npdrm binary is required. Stages the .self as USRDIR/EBOOT.BIN
 # plus PARAM.SFO (generated from tools/pkg/sfo_template.xml) and ICON0.PNG.
-PKG_DIR    := pkg_build
-PKG_TOOL   := tools/pkg
-PKG_NAME   := moonlight-ps3.pkg
-CONTENT_ID := UP0001-MLGHT0000_00-0000000000000000
-PKG_TITLE  := Moonlight PS3
+PKG_DIR       := pkg_build
+PKG_TOOL      := tools/pkg
+PKG_NAME      := moonlight-ps3.gnpdrm.pkg
+CONTENT_ID    := UP0001-MLGHT0000_00-0000000000000000
+PKG_TITLE     := Moonlight PS3
+PKG_FINALIZE  := $(PS3DEV)/bin/package_finalize
 
 pkg: $(SELF)
 	@mkdir -p $(PKG_DIR)/USRDIR
@@ -76,7 +77,8 @@ pkg: $(SELF)
 	python3 $(PKG_TOOL)/sfo.py --title "$(PKG_TITLE)" --appid MLGHT0000 \
 		-f $(PKG_TOOL)/sfo_template.xml $(PKG_DIR)/PARAM.SFO
 	python3 $(PKG_TOOL)/pkg.py -c "$(CONTENT_ID)" $(PKG_DIR)/ $(PKG_NAME)
-	@echo "Created: $(PKG_NAME)"
+	$(PKG_FINALIZE) $(PKG_NAME)
+	@echo "Created: $(PKG_NAME)  (install this on your PS3)"
 
 clean:
 	rm -f $(OBJ) $(ELF) $(SELF)

@@ -5,15 +5,18 @@ PS3DEV    ?= /usr/local/ps3dev
 PSL1GHT   ?= $(PS3DEV)/psl1ght
 PORTLIBS  := $(PS3DEV)/portlibs/ppu
 
-PPU_CC  := $(PS3DEV)/ppu/bin/ppu-gcc
-PPU_LD  := $(PS3DEV)/ppu/bin/ppu-gcc
-PPU_OBJCOPY := $(PS3DEV)/ppu/bin/ppu-objcopy
+PPU_CC     := $(PS3DEV)/ppu/bin/ppu-gcc
+PPU_LD     := $(PS3DEV)/ppu/bin/ppu-gcc
+PPU_STRIP  := $(PS3DEV)/ppu/bin/ppu-strip
+SPRXLINKER := $(PS3DEV)/bin/sprxlinker
+MAKE_SELF  := $(PS3DEV)/bin/make_self
 MAKE_FSELF := $(PS3DEV)/bin/fself
 MAKE_SELF_NPDRM := $(PS3DEV)/bin/make_self_npdrm
 
 TARGET := moonlight-ps3
 ELF    := $(TARGET).elf
 SELF   := $(TARGET).self
+BUILDDIR := build
 
 # Vendored cross-built dependencies (see BUILD.md).
 DEPS := deps
@@ -50,8 +53,16 @@ all: $(SELF)
 $(ELF): $(OBJ)
 	$(PPU_LD) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
-$(SELF): $(ELF)
-	$(MAKE_SELF_NPDRM) $< $@ $(CONTENT_ID)
+# Step 1: Strip debug symbols from ELF
+# Step 2: Fix SPRX import stubs/OPDs (critical for dynamic library loading)
+$(BUILDDIR)/$(ELF): $(ELF)
+	@mkdir -p $(BUILDDIR)
+	$(PPU_STRIP) $< -o $@
+	$(SPRXLINKER) $@
+
+# Create signed SELF for ps3load (direct network loading)
+$(SELF): $(BUILDDIR)/$(ELF)
+	$(MAKE_SELF) $< $@
 
 %.o: %.c
 	$(PPU_CC) $(CFLAGS) -c $< -o $@
@@ -67,9 +78,9 @@ CONTENT_ID    := UP0001-MLGHT0000_00-0000000000000000
 PKG_TITLE     := Moonlight PS3
 PKG_FINALIZE  := $(PS3DEV)/bin/package_finalize
 
-pkg: $(SELF)
+pkg: $(BUILDDIR)/$(ELF)
 	@mkdir -p $(PKG_DIR)/USRDIR
-	cp $(SELF) $(PKG_DIR)/USRDIR/EBOOT.BIN
+	$(MAKE_SELF_NPDRM) $< $(PKG_DIR)/USRDIR/EBOOT.BIN $(CONTENT_ID)
 	cp pkg/ICON0.PNG $(PKG_DIR)/ICON0.PNG
 	@if [ ! -f $(PKG_TOOL)/pkgcrypt*.so ]; then \
 		(cd $(PKG_TOOL) && python3 setup.py build_ext >/dev/null 2>&1 && \
@@ -81,6 +92,6 @@ pkg: $(SELF)
 	@echo "Created: $(PKG_NAME)  (install this on your PS3)"
 
 clean:
-	rm -f $(OBJ) $(ELF) $(SELF)
+	rm -f $(OBJ) $(ELF) $(SELF) $(BUILDDIR)/$(ELF)
 
 .PHONY: all clean pkg

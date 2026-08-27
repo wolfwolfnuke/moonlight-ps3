@@ -87,7 +87,7 @@ pkg: $(BUILDDIR)/$(ELF)
 		 cp build/lib.*/pkgcrypt*.so .); fi
 	$(PS3DEV)/bin/sfo --title="$(PKG_TITLE)" --appid=MLGHT0000 \
 		-f $(PKG_TOOL)/sfo_template.xml $(PKG_DIR)/PARAM.SFO
-	python3 $(PKG_TOOL)/pkg.py -c "$(CONTENT_ID)" $(PKG_DIR)/ $(PKG_NAME)
+	$(PS3DEV)/bin/pkg --contentid=$(CONTENT_ID) $(PKG_DIR)/ $(PKG_NAME)
 	$(PKG_FINALIZE) $(PKG_NAME)
 	@echo "Created: $(PKG_NAME)  (install this on your PS3)"
 

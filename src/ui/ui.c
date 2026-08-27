@@ -1,5 +1,7 @@
 #include "ui/ui.h"
 
+#include <string.h>
+
 #include "common/log.h"
 #include "common/crypto.h"
 #include "common/hoststore.h"
